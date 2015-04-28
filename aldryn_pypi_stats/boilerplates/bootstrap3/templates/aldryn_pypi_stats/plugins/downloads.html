@@ -1,0 +1,21 @@
+{% load i18n sekizai_tags %}
+
+{% addtoblock "css" %}
+    <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:600' rel='stylesheet' property='stylesheet' type='text/css'>
+{% endaddtoblock %}
+
+<h3>{{ instance.upper_text }}</h3>
+<div class="flip-counter js-flip-counter{% if was_fetched %} fetched{% endif %}">
+    {% for digit in digits %}
+    <ul class="flip-counter-digit js-flip-counter-digit list-unstyled">
+        {% for num in "1234567890" %}
+        {% if digit == num %}
+        <li class="active js-active">{{ num }}</li>
+        {% else %}
+        <li>{{ num }}</li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+    {% endfor %}
+</div>
+<h3>{{ instance.lower_text }}</h3>

@@ -1,0 +1,7 @@
+{
+    "package-name": "aldryn-pypi-stats",
+    "installed-apps": [
+        "aldryn_pypi_stats",
+        "requests"
+    ]
+}
