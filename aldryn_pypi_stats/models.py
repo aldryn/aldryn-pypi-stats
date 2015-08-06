@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-
 from __future__ import unicode_literals
 
-import requests
-
 from django.conf import settings
-from django.core.cache import cache as memcache
+from django.core.cache import cache
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 
 from cms.models.pluginmodel import CMSPlugin
+
+import requests
 
 
 CACHE_DURATION = getattr(settings, "ALDRYN_PYPI_STATS_CACHE_DURATION", 3600)
@@ -72,7 +71,10 @@ class PyPIStatsDownloadsPluginModel(PyPIStatsBase):
 
     fetched = False
 
+    ALL_TIME = 'all_time'
+
     CHOICES = (
+        (ALL_TIME, _('All Time')),
         ('last_month', _('Last month')),
         ('last_week', _('Last week')),
         ('last_day', _('Yesterday')),
@@ -93,30 +95,46 @@ class PyPIStatsDownloadsPluginModel(PyPIStatsBase):
 
     def _fetch_statistic(self):
         """Fetches the appropriate statistic from PyPI."""
-        statistic = None
+        time_period_stats = None
+        release_stats = 0
         url = self.package.get_json_url()
         self.fetched = True
         r = requests.get(url)
         if r.status_code == 200:
             data = r.json()
+            # Time Period Downloads
             try:
-                statistic = data["info"]["downloads"][self.downloads_period]
-            except AttributeError:
+                time_period_stats = data['info']['downloads'][self.downloads_period]
+            except (AttributeError, KeyError):
                 pass
-        return statistic
+
+            # Release Downloads
+            try:
+                for release in data['releases'].values():
+                    for variation in release:
+                        release_stats += variation['downloads']
+            except (AttributeError, KeyError):
+                pass
+        return time_period_stats, release_stats
 
     def get_downloads(self):
         if not self.package or not self.package.package_name:
             return 0
-        key = self.get_cache_key([
-            self.package.package_name, self.downloads_period])
-        statistic = memcache.get(key)
-        if statistic is None:
-            statistic = 0
-            statistic = self._fetch_statistic()
-            if statistic:
-                memcache.set(key, statistic, CACHE_DURATION)
-        return statistic
+
+        cache_key = self.get_cache_key([
+            self.package.package_name,
+            self.downloads_period,
+        ])
+
+        stats = cache.get(cache_key)
+        if not stats:
+            time_period_stats, release_stats = self._fetch_statistic()
+            if self.downloads_period == self.ALL_TIME:
+                stats = release_stats
+            else:
+                stats = time_period_stats
+            cache.set(cache_key, stats, CACHE_DURATION)
+        return stats
 
     def get_digits(self):
         """Returns the number of downloads as a list of string characters."""
