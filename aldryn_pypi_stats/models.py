@@ -93,6 +93,11 @@ class PyPIStatsDownloadsPluginModel(PyPIStatsBase):
         default='', blank=True,
         help_text=_('Provide text to display below.'))
 
+    base_count = models.IntegerField(
+        _('Base Count'), default=0,
+        help_text=_('Will be added to the total.'),
+    )
+
     def _fetch_statistic(self):
         """Fetches the appropriate statistic from PyPI."""
         time_period_stats = None
@@ -134,7 +139,9 @@ class PyPIStatsDownloadsPluginModel(PyPIStatsBase):
             else:
                 stats = time_period_stats
             cache.set(cache_key, stats, CACHE_DURATION)
-        return stats
+
+        # add base count
+        return stats + self.base_count
 
     def get_digits(self):
         """Returns the number of downloads as a list of string characters."""
